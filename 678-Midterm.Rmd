@@ -1,0 +1,143 @@
+---
+title: "Midterm_Project_Kai"
+author: "Kai"
+date: "2022-12-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(readr)
+library(esquisse)
+library(ggplot2)
+library(sf)
+library(mapview)
+library(Matrix)
+library(lme4)
+library(pbkrtest)
+```
+
+## R Markdown
+
+```{r}
+listings <- read_csv("listings.csv")
+```
+
+```{r}
+factors_rating <- subset(listings, select = c("host_response_time", "host_response_rate","host_acceptance_rate","host_is_superhost","neighbourhood_cleansed","property_type","bathrooms_text","price","instant_bookable","review_scores_rating","latitude","longitude","room_type","number_of_reviews","calculated_host_listings_count","reviews_per_month","accommodates"))
+```
+
+```{r}
+summary(factors_rating)
+```
+
+
+# Data Preprocessing
+```{r}
+# Get rid of all the null values
+complete_factors <-factors_rating[complete.cases(factors_rating),]
+
+# change the type of price from chr to num
+complete_factors$price <- as.numeric(parse_number(complete_factors$price))
+
+# getting rid of extrem prices such as 10000 and 9999
+complete_factors <- complete_factors %>% filter(price <= 3000)
+
+# getting rid of N/A value
+complete_factors <- complete_factors %>% filter(complete_factors$host_response_rate != "N/A")
+```
+
+# plot 
+```{r}
+
+library(ggplot2)
+
+ggplot(complete_factors) +
+ aes(x = number_of_reviews, y = review_scores_rating) +
+ geom_point(shape = "circle", 
+ size = 1.5, colour = "#112446") +
+ geom_smooth()+
+ labs(x = "werty", y = "werty", title = "wertyui") +
+ theme_minimal()
+
+```
+
+
+# apply model
+```{r}
+model11 <- lmer(review_scores_rating ~ host_response_time + host_is_superhost  + neighbourhood_cleansed 
+              + room_type  + number_of_reviews + reviews_per_month + (host_response_time|host_response_rate), data = complete_factors)
+```
+
+
+
+
+```{r}
+# checking data
+count(complete_factors, complete_factors$host_response_time)
+```
+
+```{r}
+ggplot(complete_factors) +
+ aes(x = host_response_time, weight = review_scores_rating) +
+ geom_bar(fill = "#112446") +
+ labs(x = "Host Response Time", y = "Review Scores Rating", title = "How Response Time Affacts Review Ratings") +
+ theme_minimal()
+```
+
+
+# create a map show where the top 500 high ratings home are
+```{r}
+high_rating <- complete_factors[order(-(complete_factors$review_scores_rating)),]
+high_rating_500 <- high_rating[1:500,]
+mapview(high_rating_500, xcol = "longitude", ycol = "latitude", crs = 4326, grid = FALSE)
+#tb1 <- as.data.frame(table(high_price_500$neighbourhood_cleansed))
+```
+
+# create a map show where the top 500 low ratings home are
+```{r}
+low_rating <- complete_factors[order(complete_factors$review_scores_rating),]
+low_rating_500 <- low_rating[1:500,]
+mapview(low_rating_500, xcol = "longitude", ycol = "latitude", crs = 4326, grid = FALSE)
+#tb1 <- as.data.frame(table(high_price_500$neighbourhood_cleansed))
+```
+
+
+```{r}
+
+```
+
+
+
+
+
+```{r}
+unique(listings$room_type)
+```
+
+# map not used
+```{r}
+library(sf)
+library(RColorBrewer)
+spdata <- st_read("neighbourhoods.geojson")
+
+map <- ggplot()+
+  geom_sf(data=spdata,colour='#0C090A',fill=NA)+
+  theme_bw()
+map
+
+map+
+      geom_point(mapping=aes(x=longitude,y=latitude,color='blue'),data=complete_factors,alpha=1,pch=20)+
+      scale_colour_gradientn(colors=c(rev(brewer.pal(9,'BuGn'))))+
+      labs(x='',y='',title=paste0('Distribution of Cannabis Business in Boston'))+
+      scale_size_continuous(range=c(2,10))
+```
+
+
+
+
+
+
+
