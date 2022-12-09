@@ -1,0 +1,204 @@
+---
+title: "Basketball_analysis"
+author: "Kai"
+date: "2022-12-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(dplyr)
+library(tidyverse)
+library(esquisse)
+library(ggplot2)
+boxscore <- read_csv("boxscore.csv")
+salaries <- read_csv("salaries.csv")
+games <- read_csv("games.csv")
+```
+
+# data prep and cleaning
+```{r}
+# take year and gameid out for games
+df1 <- games %>% select(1,11)
+
+# join year with score and salaries
+boxyear <- merge(boxscore, df1, by = 'game_id')
+boxyearsalary <- merge(boxyear, salaries, by = c("playerName","seasonStartYear"))
+
+
+boxyearsalary <- boxyearsalary %>% filter(boxyearsalary$FG != "Did Not Play" & boxyearsalary$FG != "Did Not Dress" & boxyearsalary$FG != "Not With Team" & boxyearsalary$FG != "Player Suspended")
+
+
+boxyearsalary = subset(boxyearsalary, select = -c(MP,`+/-`))
+
+# change chr to num 
+boxyearsalary$salary <- as.numeric(parse_number(boxyearsalary$salary))
+boxyearsalary$inflationAdjSalary <- as.numeric(parse_number(boxyearsalary$inflationAdjSalary))
+boxyearsalary$PTS <- as.numeric(parse_number(boxyearsalary$PTS))
+boxyearsalary$FG <- as.numeric(parse_number(boxyearsalary$FG))
+boxyearsalary$FGA <- as.numeric(parse_number(boxyearsalary$FGA))
+boxyearsalary$`3P` <- as.numeric(parse_number(boxyearsalary$`3P`))
+boxyearsalary$FT <- as.numeric(parse_number(boxyearsalary$FT))
+boxyearsalary$ORB <- as.numeric(parse_number(boxyearsalary$ORB))
+boxyearsalary$DRB <- as.numeric(parse_number(boxyearsalary$DRB))
+boxyearsalary$TRB <- as.numeric(parse_number(boxyearsalary$TRB))
+boxyearsalary$AST <- as.numeric(parse_number(boxyearsalary$AST))
+boxyearsalary$STL <- as.numeric(parse_number(boxyearsalary$STL))
+boxyearsalary$BLK <- as.numeric(parse_number(boxyearsalary$BLK))
+boxyearsalary$TOV <- as.numeric(parse_number(boxyearsalary$TOV))
+boxyearsalary$PF <- as.numeric(parse_number(boxyearsalary$PF))
+boxyearsalary$`3PA` <- as.numeric(parse_number(boxyearsalary$`3PA`))
+boxyearsalary$FTA <- as.numeric(parse_number(boxyearsalary$FTA))
+
+# Change num to chr
+boxyearsalary$seasonStartYear <- as.character(boxyearsalary$seasonStartYear)
+
+# select only year 2020
+data5years <- boxyearsalary %>% filter(boxyearsalary$seasonStartYear > 2015)
+
+data5years <-data5years[complete.cases(data5years),]
+
+# create the final data set
+df3 <- data5years %>% 
+  group_by(playerName, seasonStartYear)%>%
+  summarise(averageFG = mean(FG), averageFGA = mean(FGA), average3P = mean(`3P`), average3PA = mean(`3PA`), averageFT = mean(FT),  averageFTA = mean(FTA), averageORB = mean(ORB), averageDRB = mean(DRB), averageTRB = mean(TRB), averageAST = mean(AST), averageSTL = mean(STL), averageTOV = mean(TOV), averageBLK = mean(BLK), averagePF = mean(PF), averagePTS = mean(PTS),averageInflationSalary = mean(inflationAdjSalary), averageSalary = mean(salary))
+
+usetomerge <- data5years %>% select(1,2,4)
+usetomerge <- usetomerge[!duplicated(usetomerge), ]
+
+finaltable <- merge(x = df3, y = usetomerge, by = c("playerName","seasonStartYear"))
+```
+
+
+Introduction
+
+
+
+
+
+
+# Correlation Between Annul Average Points and Salary
+```{r}
+ggplot(finaltable) +
+ aes(x = averagePTS, y = averageSalary, colour = teamName) +
+ geom_point(shape = "circle", size = 0.7, alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)+
+ scale_color_hue(direction = 1) +
+ labs(x = "Annul Average PTS", y = "Salary", title = "Correlation Between Annul Average Points and Salary") +
+ theme_minimal()
+```
+Figure 1.
+
+Figure 1 shows the correlation between the average points and salary. From this graph we could see a clear relationship between the two and all of the team show a positive relationship. Among all these teams we could see that the Oklahoma City Thunder has the strongest positive relationship and Atlanta Hawks has the weakest positive relationship. This means that Thunder take scoring ability seriously in choosing a player, and Hawks value that the least. 
+
+
+
+
+```{r}
+
+library(ggplot2)
+
+ggplot(finaltable) +
+ aes(x = averagePTS, y = averageSalary, colour = seasonStartYear) +
+ geom_point(shape = "circle", 
+ size = 1.5) +
+ scale_color_hue(direction = 1) +
+  geom_smooth(method = "lm", se = FALSE)
+ labs(x = "Year", y = "Annual Salary", title = "Annual Salary VS. Year", 
+ color = "Year") +
+ theme_minimal()
+
+```
+Figure 2.
+
+Figure 2 shows the relationship between average points a player get and the salary, and this is grouped by years. From this graph we could see that the annual salary is increasing over the years. As the year increase the salary increases as well. There are few factors that make this happen, first factor is the increasing value that created by the NBA association, for example ESPN and TNT signed contract that will secure the broadcasting rights from 2014 to 2022 (9 Years) for 24 billion dollars, that is a huge number and that for sure lead to huge salary-cap changes for the coming years. The second factor is the increasing inflation rate. The dollar had a average inflation rate of 3.3% from 2015 to today, producing a cumulative price increase of 25.73% which is a essential impactor of the increasing salary. 
+
+
+
+```{r}
+
+library(ggplot2)
+
+ggplot(finaltable) +
+ aes(x = averageTRB, y = averageSalary, colour = teamName) +
+ geom_point(shape = "circle", 
+ size = 0.77) +
+ scale_color_hue(direction = 1) +
+  geom_smooth(method = "lm", se = FALSE) +
+ labs(x = "Average Total Rebounds", y = "Annual Salary", 
+ title = "Average Total Rebounds VS. Annual Salary", color = "Team") +
+ theme_minimal()
+```
+Figure 3. 
+
+Figure 3 shows the correlation between the average total rebounds in each game and the salary. From this graph we could see that rebounds plays a important role in pricing a player. In NBA history, the center position always plays a essential role in a game, they are the critical factors of winning. One of the reason is that they could always get rebound and have a second chance to offense, or they could prevent the other team from attack again. The means that if one team dominant the rebound they could have endless chances of attcking until the goal is made. This is why the rebound is such a important factor in waging a player. 
+
+
+
+
+```{r}
+ggplot(finaltable) +
+ aes(x = averageTRB, y = averageSalary, colour = seasonStartYear) +
+ geom_point(shape = "circle", 
+ size = 1.5) +
+ scale_color_hue(direction = 1) +
+  geom_smooth(method = "lm", se = FALSE) +
+ labs(x = "Average Total Rebounds ", y = "Salary", 
+ title = "Average Total Rebounds VS. Annual Salary", color = "Year") +
+ theme_minimal()
+
+```
+
+
+
+```{r}
+
+ggplot(finaltable) +
+ aes(x = averageAST, y = averageTOV) +
+ geom_point(shape = "circle", size = 1.5, colour = "#112446") +
+  geom_smooth(method = "lm", se = FALSE) +
+ labs(x = "Average Assists", y = "Average Turnovers", title = "Average Assisstance VS. Average Turnover") +
+ theme_minimal()
+
+```
+
+
+
+```{r}
+log_NBA_data <- finaltable %>% dplyr::select(Player_Id_Str, Team, Position1, Salary, Appearance, Points,
+                                           Threes_Made, Rebounds, Assists, 
+                                           Steals, Blocks, Height, Draft_Pick) %>% data.frame()
+```
+
+
+```{r}
+library(lme4)
+model <- lmer(averageSalary ~ averagePTS + averageFG  + average3P 
+              + averageAST  + averageFT + averageTRB 
+              + (1 + averagePTS + averageFG  + average3P + averageAST  + averageFT + averageTRB | teamName)
+              + (1 + averagePTS| seasonStartYear),
+              data = finaltable)
+summary(model)
+
+```
+
+
+
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+
+
+
+
+
